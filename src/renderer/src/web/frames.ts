@@ -20,6 +20,33 @@ function once(el: HTMLMediaElement, event: string): Promise<void> {
   })
 }
 
+// True when the pixels are all transparent or near-black, i.e. nothing was presented yet.
+export function isBlank(data: ArrayLike<number>, threshold = 6): boolean {
+  let sum = 0
+  let n = 0
+  for (let i = 0; i + 3 < data.length; i += 4 * 16) {
+    if (data[i + 3] === 0) { n++; continue }
+    sum += (data[i] + data[i + 1] + data[i + 2]) / 3
+    n++
+  }
+  return n === 0 || sum / n < threshold
+}
+
+// Resolve once the browser has presented a new frame (WebKit paints the seeked frame later than 'seeked').
+function nextFrame(el: HTMLVideoElement): Promise<void> {
+  return new Promise((resolve) => {
+    let done = false
+    const finish = () => { if (!done) { done = true; resolve() } }
+    const timer = setTimeout(finish, 500)
+    const wrapped = () => { clearTimeout(timer); finish() }
+    if ('requestVideoFrameCallback' in el) {
+      el.requestVideoFrameCallback(wrapped)
+    } else {
+      requestAnimationFrame(() => requestAnimationFrame(wrapped))
+    }
+  })
+}
+
 export async function extractFrames(video: Blob, opts: Range = {}): Promise<Blob[]> {
   const url = URL.createObjectURL(video)
   const el = document.createElement('video')
@@ -40,7 +67,12 @@ export async function extractFrames(video: Blob, opts: Range = {}): Promise<Blob
     for (const t of sampleTimes(el.duration, opts)) {
       el.currentTime = t
       await once(el, 'seeked')
+      await nextFrame(el)
       ctx.drawImage(el, 0, 0, width, height)
+      if (isBlank(ctx.getImageData(0, 0, width, height).data)) {
+        await nextFrame(el)
+        ctx.drawImage(el, 0, 0, width, height)
+      }
       const jpg = await new Promise<Blob | null>((r) => canvas.toBlob(r, 'image/jpeg', 0.82))
       if (jpg) out.push(jpg)
     }
