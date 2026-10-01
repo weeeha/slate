@@ -1,7 +1,7 @@
 {
   "name": "slate",
   "version": "0.3.2",
-  "description": "Slate \u2014 the prompt studio for AI filmmaking. Plan shots, direct coverage, keep continuity, and compile production-ready prompts for any image or video generator.",
+  "description": "Slate — the prompt studio for AI filmmaking. Plan shots, direct coverage, keep continuity, and compile production-ready prompts for any image or video generator.",
   "main": "out/main/index.js",
   "author": "Sam Wasserman",
   "license": "Apache-2.0",
@@ -31,6 +31,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "electron": "^43.1.0",
     "electron-vite": "^6.0.0-beta.1",
+    "fake-indexeddb": "^6.2.5",
     "typescript": "^5.7.2",
     "vite": "^8.1.4",
     "vitest": "^4.1.10"
