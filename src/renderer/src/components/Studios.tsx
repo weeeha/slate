@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { useProject, uid } from '../stores/project'
 import { fillCharacter, characterSheetPrompt, studyStyle } from '../lib/brainTasks'
+import { mediaSrc } from '../lib/mediaSrc'
 import SoundDept from './SoundDept'
 import type { CharacterSheet, ArtDeptSheet, LocationSheet, StyleProfile, ScenarioTab } from '../../../shared/types'
 
@@ -611,7 +612,7 @@ function SheetStills({
     <div className="sheet-stills">
       {images.map((p) => (
         <div key={p} className="sheet-still">
-          <img src={`file://${p}`} alt="" title={p} />
+          <img src={mediaSrc(p)} alt="" title={p} />
           <button className="btn btn-ghost btn-danger" onClick={() => onRemove(p)}>
             ✕
           </button>
