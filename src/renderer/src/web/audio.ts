@@ -20,7 +20,9 @@ export function downmixTo16k(channels: Float32Array[], fromRate: number): Int16A
 
 export async function decodeToPcm(blob: Blob): Promise<{ pcm: Int16Array; fullDurationSec: number }> {
   const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-  const ctx = new AC()
+  // A 16 kHz context makes the browser resample with a proper filter (no aliasing in the
+  // brightness measure, a third of the memory of a native-rate decode, closer to ffmpeg).
+  const ctx = new AC({ sampleRate: SAMPLE_RATE })
   try {
     const buf = await ctx.decodeAudioData(await blob.arrayBuffer())
     const channels = Array.from({ length: buf.numberOfChannels }, (_, c) => buf.getChannelData(c))

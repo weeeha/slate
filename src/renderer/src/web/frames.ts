@@ -13,10 +13,24 @@ export function sampleTimes(durationSec: number, opts: Range = {}): number[] {
   return times
 }
 
-function once(el: HTMLMediaElement, event: string): Promise<void> {
+export const EVENT_TIMEOUT_MS = 15_000
+
+/** Resolve on `event`, reject on a media error or after `ms`; always removes its listeners. */
+export function once(el: EventTarget, event: string, ms = EVENT_TIMEOUT_MS): Promise<void> {
   return new Promise((resolve, reject) => {
-    el.addEventListener(event, () => resolve(), { once: true })
-    el.addEventListener('error', () => reject(new Error('This video could not be decoded in the browser.')), { once: true })
+    const cleanup = (): void => {
+      clearTimeout(timer)
+      el.removeEventListener(event, onEvent)
+      el.removeEventListener('error', onError)
+    }
+    const onEvent = (): void => { cleanup(); resolve() }
+    const onError = (): void => { cleanup(); reject(new Error('This video could not be decoded in the browser.')) }
+    const timer = setTimeout(() => {
+      cleanup()
+      reject(new Error(`This video did not respond in time (${event}). It may be empty or in a format this browser cannot read.`))
+    }, ms)
+    el.addEventListener(event, onEvent)
+    el.addEventListener('error', onError)
   })
 }
 

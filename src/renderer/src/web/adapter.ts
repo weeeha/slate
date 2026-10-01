@@ -2,7 +2,7 @@
 // window.slate). Installed only when window.slate is missing; Electron is unchanged.
 
 import type { AudioFingerprint, BrainResult, Project, ProjectMeta, SlateApi } from '../../../shared/types'
-import { computeFingerprint } from '../../../shared/audioFingerprint'
+import { computeFingerprint, SAMPLE_RATE } from '../../../shared/audioFingerprint'
 import { newProjectShape } from '../lib/newProject'
 import { openStore, type SlateStore } from './store'
 import { stagedPath, framePath, fileNameOf, isWebPath } from './paths'
@@ -32,10 +32,13 @@ function meta(p: Project): ProjectMeta {
   }
 }
 
-/** Every media path a project points at (references and their frames, sheet images). */
+/**
+ * Every stored media path of a project: image references, extracted frames, sheet images.
+ * A video reference's own path is not stored (only its frames are), so it is not listed.
+ */
 function mediaPathsOf(p: Project): string[] {
   const paths = [
-    ...p.references.flatMap((r) => [r.path, ...r.frames]),
+    ...p.references.flatMap((r) => (r.kind === 'video' ? r.frames : [r.path, ...r.frames])),
     ...p.characters.flatMap((c) => c.images ?? []),
     ...p.locations.flatMap((l) => l.images ?? []),
     ...p.lookbook.flatMap((l) => l.images ?? []),
@@ -47,6 +50,19 @@ export function createWebApi(deps: { store?: Promise<SlateStore>; pick?: typeof 
   const store = deps.store ?? openStore()
   const pick = deps.pick ?? pickFiles
   const staged = new Map<string, File>()
+  let persistAsked = false
+
+  // Ask the browser not to evict this origin's storage (Safari clears script-writable
+  // storage after 7 days without interaction). Once per page, best effort, result ignored.
+  const askPersistence = (): void => {
+    if (persistAsked) return
+    persistAsked = true
+    try {
+      void navigator.storage?.persist?.().catch(() => undefined)
+    } catch {
+      // storage API unavailable: nothing to do
+    }
+  }
 
   const stage = (file: File): string => {
     const path = stagedPath(crypto.randomUUID(), file.name)
@@ -65,6 +81,7 @@ export function createWebApi(deps: { store?: Promise<SlateStore>; pick?: typeof 
   const persist = async (path: string, blob: Blob): Promise<void> => {
     await (await store).putMedia(path, { type: blob.type, bytes: await blob.arrayBuffer() })
     cacheUrl(path, blob)
+    askPersistence()
   }
 
   const saveFrames = async (mediaPath: string, frames: Blob[]): Promise<string[]> => {
@@ -94,6 +111,7 @@ export function createWebApi(deps: { store?: Promise<SlateStore>; pick?: typeof 
     async createProject(name) {
       const p = newProjectShape(name)
       await (await store).putProject(p)
+      askPersistence()
       return structuredClone(p)
     },
     async openProject(id) {
@@ -103,6 +121,7 @@ export function createWebApi(deps: { store?: Promise<SlateStore>; pick?: typeof 
     },
     async saveProject(project) {
       await (await store).putProject({ ...project, updatedAt: new Date().toISOString() })
+      askPersistence()
     },
     async deleteProject(id) {
       const s = await store
@@ -141,8 +160,11 @@ export function createWebApi(deps: { store?: Promise<SlateStore>; pick?: typeof 
     async ingestMedia(_projectId, path) {
       const blob = await blobFor(path)
       if (!blob) throw new Error(`Media not found: ${fileNameOf(path)}`)
-      await persist(path, blob)
-      if (blob.type.startsWith('image/')) return { kind: 'image' as const, frames: [path] }
+      if (blob.type.startsWith('image/')) {
+        await persist(path, blob)
+        return { kind: 'image' as const, frames: [path] }
+      }
+      // Videos are never stored: only the extracted frames are, so a failed decode leaves nothing behind.
       return { kind: 'video' as const, frames: await saveFrames(path, await extractFrames(blob)) }
     },
     async stillsDiscover() {
@@ -157,6 +179,7 @@ export function createWebApi(deps: { store?: Promise<SlateStore>; pick?: typeof 
       const blob = await blobFor(path)
       if (!blob) throw new Error(`Audio not found: ${fileNameOf(path)}`)
       const { pcm, fullDurationSec } = await decodeToPcm(blob)
+      if (pcm.length < SAMPLE_RATE) throw new Error('Audio is too short to analyze (need at least 1 second).')
       return computeFingerprint(pcm, fullDurationSec)
     },
     pathForFile(file) {

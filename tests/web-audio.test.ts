@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { downmixTo16k } from '../src/renderer/src/web/audio'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { downmixTo16k, decodeToPcm } from '../src/renderer/src/web/audio'
 
 describe('downmixTo16k', () => {
   it('averages channels and resamples 48k to 16k', () => {
@@ -16,5 +16,21 @@ describe('downmixTo16k', () => {
   it('caps at 90 seconds', () => {
     const pcm = downmixTo16k([new Float32Array(16000 * 100)], 16000)
     expect(pcm.length).toBe(16000 * 90)
+  })
+})
+
+describe('decodeToPcm', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  it('creates the AudioContext at 16 kHz so the browser resamples with a filter', async () => {
+    const rates: unknown[] = []
+    class FakeCtx {
+      constructor(opts?: { sampleRate?: number }) { rates.push(opts?.sampleRate) }
+      decodeAudioData = async () => ({ numberOfChannels: 1, sampleRate: 16000, duration: 1, getChannelData: () => new Float32Array(16000) })
+      close = async () => undefined
+    }
+    vi.stubGlobal('window', { AudioContext: FakeCtx })
+    const out = await decodeToPcm(new Blob([new Uint8Array(4)]))
+    expect(rates).toEqual([16000])
+    expect(out.pcm.length).toBe(16000)
   })
 })
