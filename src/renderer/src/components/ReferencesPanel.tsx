@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react'
 import { useProject, uid } from '../stores/project'
+import { mediaSrc } from '../lib/mediaSrc'
 import { analyzeReference, elementSheetToSetups } from '../lib/brainTasks'
 import type { CircledTake, ElementSheet, Reference, SectionId } from '../../../shared/types'
 
@@ -100,7 +101,7 @@ export default function ReferencesPanel(): React.JSX.Element {
           {ref.frames.length > 0 && (
             <div className="ref-frames">
               {ref.frames.slice(0, 6).map((f) => (
-                <img key={f} src={`file://${f}`} alt="" />
+                <img key={f} src={mediaSrc(f)} alt="" />
               ))}
             </div>
           )}
@@ -304,7 +305,7 @@ function StillGrid({ paths }: { paths: string[] }): React.JSX.Element {
     <div className="still-grid">
       {paths.map((f) => (
         <div key={f} className="still-cell">
-          <img src={`file://${f}`} alt="" />
+          <img src={mediaSrc(f)} alt="" />
           <select
             defaultValue=""
             onChange={(e) => {
