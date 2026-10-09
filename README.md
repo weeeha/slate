@@ -15,6 +15,8 @@
 
 </div>
 
+> **About this fork.** This is [weeeha/slate](https://github.com/weeeha/slate), a fork of [wassermanproductions/slate](https://github.com/wassermanproductions/slate) by Sam Wasserman (Apache-2.0, see [NOTICE](NOTICE)). The fork adds a browser build next to the Electron app: `npm run build:web` writes a static site to `dist-web/`, with projects stored in the browser's IndexedDB. The brain (Claude Code, Codex, local model) is desktop-only. Details and known gaps are in [MODIFICATIONS.md](MODIFICATIONS.md).
+
 ---
 
 Slate doesn't generate images or video. It makes the **prompts** you paste into your generators dramatically better, faster, and consistent across a whole film — the missing pre-production layer between *"I can see the shot"* and the generate button.
@@ -105,7 +107,8 @@ It pairs naturally with the rest of [Wasserman's Filmmaker Suite](https://github
 |---|---|
 | `npm run dev` | Run from source with hot reload |
 | `npm run build` | Production build (electron-vite) |
-| `npm test` | Unit tests (export engine, action engine, audio DSP) |
+| `npm run build:web` | Browser build into `dist-web/` (fork addition) |
+| `npm test` | Unit tests (export engine, action engine, audio DSP, browser storage and media paths) |
 | `npm run typecheck` | Strict TypeScript across main, preload, renderer |
 | `node scripts/package-macos.mjs --install` | Build and install `/Applications/Slate.app` |
 | `node scripts/snap.mjs` | Regenerate README screenshots headlessly |
